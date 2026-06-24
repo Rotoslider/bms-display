@@ -1,0 +1,25 @@
+{
+  "_comment": "Copy this file to 'config.json', then list your batteries below. To find each battery's address, run:  python3 scan.py",
+
+  "web": {
+    "title": "Battery Monitor",
+    "port": 8080,
+    "poll_seconds": 60,
+    "refresh_seconds": 5
+  },
+
+  "poll": {
+    "connect_timeout": 12,
+    "settle_seconds": 2.0,
+    "notify_timeout": 8,
+    "find_timeout": 8,
+    "attempts": 3,
+    "retry_seconds": 3,
+    "gap_seconds": 1.5
+  },
+
+  "batteries": [
+    { "mac": "AA:BB:CC:00:00:01", "name": "Battery 1" },
+    { "mac": "AA:BB:CC:00:00:02", "name": "Battery 2" }
+  ]
+}

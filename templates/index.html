@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <h1>{{ title }}</h1>
+    <div id="status" class="status">connecting…</div>
+  </header>
+
+  <section id="summary" class="summary"></section>
+  <main id="grid" class="grid"></main>
+
+  <footer>
+    Read directly from each battery's BMS over Bluetooth · page refreshes every {{ refresh }}s
+  </footer>
+
+  <script>
+    const REFRESH_MS = {{ refresh }} * 1000;
+
+    function f(n, digits, unit) {
+      if (n === null || n === undefined) return "—";
+      return Number(n).toFixed(digits) + (unit || "");
+    }
+
+    function summaryView(s) {
+      const items = [
+        ["Bank voltage", f(s.bank_voltage, 2, " V")],
+        ["Current", f(s.total_current, 2, " A")],
+        ["Power", f(s.total_power, 0, " W")],
+        ["Avg charge", s.avg_soc === null ? "—" : s.avg_soc + " %"],
+        ["Worst cell gap", s.max_delta_mv === null ? "—" : s.max_delta_mv + " mV"],
+        ["Hottest", f(s.max_temp, 1, " °C")],
+        ["Packs online", s.online_count + " / " + s.pack_count],
+      ];
+      return items.map(([k, v]) =>
+        `<div class="stat"><div class="stat-val">${v}</div><div class="stat-key">${k}</div></div>`
+      ).join("");
+    }
+
+    function socClass(soc) {
+      if (soc === null || soc === undefined) return "";
+      if (soc <= 15) return "soc-low";
+      if (soc <= 40) return "soc-mid";
+      return "soc-ok";
+    }
+
+    function cellChips(d) {
+      if (!d || !d.cells_mv) return "";
+      return d.cells_mv.map((mv, i) => {
+        let cls = "cell";
+        if (i + 1 === d.cell_max_no) cls += " cell-max";
+        if (i + 1 === d.cell_min_no) cls += " cell-min";
+        return `<div class="${cls}"><span class="cell-no">${i + 1}</span>${mv}</div>`;
+      }).join("");
+    }
+
+    function batteryCard(b) {
+      const d = b.data;
+      const offline = !b.online;
+      const age = b.age_s === null ? "" :
+        (b.age_s < 90 ? `${b.age_s}s ago` : `${Math.round(b.age_s / 60)}m ago`);
+      let head = `<div class="card-head">
+          <span class="dot ${offline ? 'dot-off' : 'dot-on'}"></span>
+          <span class="card-name">${b.name}</span>
+          <span class="card-age">${offline ? 'offline · last seen ' + (age || 'never') : 'updated ' + age}</span>
+        </div>`;
+
+      if (!d) {
+        return `<div class="card card-offline">${head}
+          <div class="nodata">${b.error ? b.error : 'waiting for first reading…'}</div></div>`;
+      }
+
+      const temps = (d.temps || []).map(t => f(t, 1, "°")).join("  ") || "—";
+      return `<div class="card ${offline ? 'card-stale' : ''}">
+        ${head}
+        <div class="soc ${socClass(d.soc)}">
+          <div class="soc-bar"><div class="soc-fill" style="width:${Math.max(0, Math.min(100, d.soc))}%"></div></div>
+          <div class="soc-num">${d.soc}<span>%</span></div>
+        </div>
+        <div class="vrow">
+          <div><b>${f(d.voltage, 2)}</b><span>V</span></div>
+          <div><b>${f(d.current, 2)}</b><span>A</span></div>
+          <div><b>${f(d.power, 0)}</b><span>W</span></div>
+        </div>
+        <div class="meta">
+          <span>cells ${d.cell_min_mv}–${d.cell_max_mv} mV</span>
+          <span class="${d.cell_delta_mv >= 100 ? 'warn' : ''}">gap ${d.cell_delta_mv} mV</span>
+          <span>temp ${temps}</span>
+          ${d.problem ? `<span class="warn">⚠ ${d.protection}</span>` : `<span class="ok">OK</span>`}
+        </div>
+        <div class="cells">${cellChips(d)}</div>
+      </div>`;
+    }
+
+    async function tick() {
+      try {
+        const r = await fetch("/api/data", { cache: "no-store" });
+        const j = await r.json();
+        document.getElementById("summary").innerHTML = summaryView(j.summary);
+        document.getElementById("grid").innerHTML = j.batteries.map(batteryCard).join("");
+        const t = new Date(j.updated * 1000).toLocaleTimeString();
+        document.getElementById("status").textContent =
+          `${j.summary.online_count}/${j.summary.pack_count} online · ${t}`;
+        document.getElementById("status").className = "status ok";
+      } catch (e) {
+        document.getElementById("status").textContent = "can't reach the Pi…";
+        document.getElementById("status").className = "status err";
+      }
+    }
+
+    tick();
+    setInterval(tick, REFRESH_MS);
+  </script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# your personal settings + the python virtual environment
+config.json
+venv/
+__pycache__/
+*.pyc

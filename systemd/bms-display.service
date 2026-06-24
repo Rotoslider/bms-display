@@ -1,0 +1,15 @@
+[Unit]
+Description=Battery BMS local web dashboard
+After=bluetooth.service network-online.target
+Wants=bluetooth.service
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__DIR__
+ExecStart=__DIR__/venv/bin/python __DIR__/app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
