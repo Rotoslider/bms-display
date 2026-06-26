@@ -16,6 +16,8 @@ you can open from your **phone, tablet, or computer**, or full-screen on a
 If you can copy and paste a few lines, you can set this up. Take it one part at a
 time. ☕
 
+![The battery dashboard in a web browser, showing a card for each pack with charge level, voltage, current, temperature, and every cell.](images/bms_display.png)
+
 ---
 
 ## What you’ll need
